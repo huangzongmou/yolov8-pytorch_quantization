@@ -5,8 +5,7 @@
 # 安装yolov8
 
     pip install ultralytics
-    注释ultralytics源码ops.py:262一下内容,避免推理超
-时跳出，导致验证值存在波动、不准确问题。
+    注释ultralytics源码ops.py:262一下内容,避免推理超时break，导致验证值存在波动、不准确问题。
 ```
     if (time.time() - t) > time_limit:
         LOGGER.warning(f'WARNING ⚠️ NMS time limit {time_limit:.3f}s exceeded')
