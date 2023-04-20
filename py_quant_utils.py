@@ -115,9 +115,8 @@ def transfer_torch_to_quantization(nninstance: torch.nn.Module, quantmodule):
 
 def replace_to_quantization_module(model: torch.nn.Module, ignore_policy: List[str] = None):
     module_dict = {}
-    # 遍历量化模块映射的全局成员
+
     for entry in quant_modules._DEFAULT_QUANT_MAP:
-        # 返回module对象
 
         module = getattr(entry.orig_mod, entry.mod_name)
         module_dict[id(module)] = entry.replace_mod

@@ -194,9 +194,6 @@ def train(model, epochs, train_loader, fp16=True, lrschedule=None, train_layers=
     optimizer    = optim.Adam(model.parameters(), 1e-5)
     quant_loss_fn   = torch.nn.MSELoss()
     device       = next(model.parameters()).device
-    # print(lrschedule)
-    # import pdb
-    # pdb.set_trace()
 
     if lrschedule is None:
         lrschedule = {
@@ -204,7 +201,7 @@ def train(model, epochs, train_loader, fp16=True, lrschedule=None, train_layers=
             5: 1e-5,
             20: 1e-6
         }
-    # 定义钩子函数，结合 `register_forward_hook` 获取每层的特征并append到l list之中
+
     def make_layer_forward_hook(l):
         def forward_hook(m, input, output):
             l.append(output)
@@ -230,7 +227,6 @@ def train(model, epochs, train_loader, fp16=True, lrschedule=None, train_layers=
         origin_outputs = []
         remove_handle  = []
         for ml, ori in supervision_module_pairs:
-            # 为每层加入钩子，在进行Forward的时候会自动将每层的特征传送给model_outputs和origin_outputs
             remove_handle.append(ml.register_forward_hook(make_layer_forward_hook(model_outputs))) 
             remove_handle.append(ori.register_forward_hook(make_layer_forward_hook(origin_outputs)))
 
@@ -252,10 +248,6 @@ def train(model, epochs, train_loader, fp16=True, lrschedule=None, train_layers=
 
                 model_outputs.clear()
                 origin_outputs.clear()
-
-                # print(model_outputs)
-                # import pdb
-                # pdb.set_trace()
 
             if fp16:
                 scaler.scale(quant_loss).backward()
@@ -307,7 +299,6 @@ def parse_opt():
     parser.add_argument('--seed', type=int, default=0, help='Global training seed')
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
 
-    # setting for calibration
     parser.add_argument('--calibrator', type=str, choices=["max", "histogram"], default="max")
     parser.add_argument('--calib-batch-size', type=int, default=64, help='calib batch size: default 64')
     parser.add_argument('--num-calib-batch', default=64, type=int, help='Number of batches for calibration. 0 will disable calibration. (default: 4)')
@@ -330,7 +321,7 @@ if __name__ == "__main__":
     opt = parse_opt()
     device = select_device(opt.device, batch_size=opt.batch_size)
     yolo, train_loader, val_loader, calib_loader, dataset = prepare_model(calibrator=opt.calibrator, opt=opt,hyp=opt.hyp, device=device)
-    # 校准模型
+
     with torch.no_grad():
         calibrate_model(
             model=yolo.model,

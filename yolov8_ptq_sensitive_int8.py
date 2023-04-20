@@ -152,79 +152,9 @@ def prepare_model(calibrator, opt, device):
 
     return calib_loader,yolo
 
-
-def export_onnx(model, onnx_filename, batch_onnx, dynamic_shape, simplify, imgsz=672, prefix=colorstr('calib: ')):
-    from models.yolo import Detect
-    model.eval()
-    for k, m in model.named_modules():
-        if isinstance(m, Detect):
-            m.inplace = False
-            m.export = True
-
-    # We have to shift to pytorch's fake quant ops before exporting the model to ONNX
-    quant.quant_nn.TensorQuantizer.use_fb_fake_quant = True
-
-    # Export ONNX for multiple batch sizes
-    print("Creating ONNX file: " + onnx_filename)
-    dummy_input = torch.randn(batch_onnx, 3, imgsz, imgsz)  
-
-    try:
-        import onnx
-        with torch.no_grad():
-            torch.onnx.export(model.cpu(), 
-                            dummy_input.cpu(), 
-                            onnx_filename, 
-                            verbose=False, 
-                            opset_version=13, 
-                            input_names=['images'],
-                            output_names=['output'],
-                            dynamic_axes={'images': {0: 'batch', 2: 'height', 3: 'width'}} if dynamic_shape else None,
-                            enable_onnx_checker=False, 
-                            do_constant_folding=True)
-
-        print('ONNX export success, saved as %s' % onnx_filename)
-
-    except ValueError:
-        warnings.warn(UserWarning("Per-channel quantization is not yet supported in Pytorch/ONNX RT (requires ONNX opset 13)"))
-        print("Failed to export to ONNX")
-        return False
-
-    except Exception as e:
-            print(f'{prefix} export failure: {e}')
-    
-    # Checks
-    model_onnx = onnx.load(onnx_filename)  # load onnx model
-    onnx.checker.check_model(model_onnx)  # check onnx model
-    
-    # Simplify
-    if simplify:
-        try:
-            import onnxsim
-            print(f'{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...')
-            model_onnx, check = onnxsim.simplify(
-                    model_onnx,
-                    dynamic_input_shape=dynamic_shape,
-                    input_shapes={'images': list(dummy_input.shape)} if dynamic_shape else None)
-
-            assert check, 'assert check failed'
-            onnx.save(model_onnx, onnx_filename)
-        except Exception as e:
-            print(f'{prefix} simplifier failure: {e}')
-
-        print(f'{prefix} export success, saved as {onnx_filename} ({file_size(onnx_filename):.1f} MB)')
-        print(f"{prefix} Run ONNX model inference with: 'python detect.py --weights {onnx_filename}'")
-        
-    # Restore the PSX/TensorRT's fake quant mechanism
-    quant.quant_nn.TensorQuantizer.use_fb_fake_quant = False
-    # Restore the model to train/test mode, use Detect() layer grid
-    model.export = False
-
-    return True
-
-
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default=ROOT / './ultralytics/datasets/coco128.yaml', help='dataset.yaml path')
+    parser.add_argument('--data', type=str, default=ROOT / '../ultralytics/ultralytics/datasets/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--weights', nargs='+', type=str, default="yolov8n.pt", help='model.pt path(s)')
     parser.add_argument('--model-name', '-m', default='yolov8n', help='model name: default yolov5s')
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
@@ -235,9 +165,7 @@ def parse_opt():
 
     # setting for calibration
     parser.add_argument('--calib-batch-size', type=int, default=64, help='calib batch size: default 64')
-    # parser.add_argument('--sensitive-layer', default=['model.24.m.0', 
-    #                                                   'model.24.m.1', 
-    #                                                   'model.24.m.2'], help='skip sensitive layer: default detect head')
+  
     parser.add_argument('--sensitive-layer', default=[], help='skip sensitive layer: default detect head')
     parser.add_argument('--num-calib-batch', default=64, type=int,
                         help='Number of batches for calibration. 0 will disable calibration. (default: 4)')
@@ -270,7 +198,6 @@ def sensitive_analysis(yolo, opt, data_loader, summary_file='./summary_sensitive
     print("Sensitive Analysis by each layer...")
     for i in range(0, len(yolo.model.model)):
         layer = yolo.model.model[i]
-        print(layer)
         if quant.have_quantizer(layer):
             print(f"Quantization disable model.{i}")
             quant.disable_quantization(layer).apply()
@@ -287,14 +214,12 @@ def sensitive_analysis(yolo, opt, data_loader, summary_file='./summary_sensitive
 
 
 if __name__ == "__main__":
-    # 超参数
+
     opt = parse_opt()
-    # 设备选择
+
     device = select_device(opt.device, batch_size=opt.batch_size)
-    # 准备模型和dataloader
     data_loader, yolo = prepare_model(calibrator=opt.calibrator, opt=opt, device=device)
 
-    # 校准模型
     with torch.no_grad():
         calibrate_model(
             model=yolo.model,

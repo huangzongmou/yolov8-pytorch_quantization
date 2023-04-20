@@ -112,30 +112,19 @@ def load_model(weight, device):
 
 
 def prepare_model(calibrator, opt, device):
-    """
-    1、Load模型
-    2、插入模型的Q和DQ节点
-    3、设置量化方法：per_tensor/per_channels,
-    4、Dataloader的制作
-    """
+
     with open(opt.data, encoding='utf-8') as f:
         data_dict = yaml.load(f, Loader=yaml.SafeLoader)  
         # print(data_dict)
         data_dict = check_dataset(data_dict)
     calib_path = data_dict['val']
 
-    # 初始化量化方法
     quant.initialize_calib_method(per_channel_quantization=True, calib_method=calibrator)  
-    # 加载FP32的Pytorch模型
     model,yolo = load_model(opt.weights, device)
-    # 为FP32的Torch的Q和DQ的节点
     quant.replace_to_quantization_module(model, ignore_policy=opt.sensitive_layer)
 
     model.eval()
     model.cuda()
-    # print(model)
-    # import pdb
-    # pdb.set_trace()
 
     gs = max(int(model.stride.max()), 32)  # grid size (max stride)
     imgsz, _ = [check_img_size(x, gs) for x in [opt.imgsz, opt.imgsz]]  # verify imgsz are gs-multiples
@@ -221,7 +210,7 @@ def export_onnx(model, onnx_filename, batch_onnx, dynamic_shape, simplify, imgsz
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default=ROOT / './ultralytics/datasets/coco128.yaml', help='dataset.yaml path')
+    parser.add_argument('--data', type=str, default=ROOT / '../ultralytics/ultralytics/datasets/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--weights', nargs='+', type=str, default="yolov8n.pt", help='model.pt path(s)')
     parser.add_argument('--model-name', '-m', default='yolov8n', help='model name: default yolov5s')
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
@@ -232,6 +221,8 @@ def parse_opt():
 
     # setting for calibration
     parser.add_argument('--calib-batch-size', type=int, default=32, help='calib batch size: default 64')
+    # parser.add_argument('--sensitive-layer', default=[], help='skip sensitive layer: default detect head')
+
     parser.add_argument('--sensitive-layer', default=['model.15.cv1.conv',
                                                       'model.15.cv2.conv',
                                                       "model.15.m.0.cv1.conv",
