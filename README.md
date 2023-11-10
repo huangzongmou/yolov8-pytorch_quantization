@@ -1,7 +1,7 @@
 # yolov8-pytorch_quantization
 
-    1、使用pytorch_quantization对yolov8进行量化,ptq、敏感层分析、qat。主要参考知识星球里  
-    《集智书童》的yolov5量化，该星球干货满满，有兴趣的同学可以关注《集智书童》。
+    1、使用pytorch_quantization对yolov8进行量化,ptq、敏感层分析、qat。主要参考里 
+    《集智书童》的yolov5量化。
 
 # 安装yolov8
 
