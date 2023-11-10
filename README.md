@@ -1,6 +1,6 @@
 # yolov8-pytorch_quantization
 
-    1、使用pytorch_quantization对yolov8进行量化,ptq、敏感层分析、qat。主要参考里 
+    1、使用pytorch_quantization对yolov8进行量化,ptq、敏感层分析、qat。参考里 
     《集智书童》的yolov5量化。
 
 # 安装yolov8
